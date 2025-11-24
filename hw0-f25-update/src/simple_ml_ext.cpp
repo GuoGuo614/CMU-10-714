@@ -33,8 +33,61 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
+    for (size_t i = 0; i < m; i += batch) {
+        const float *X_batch = X + i * n;
+        const unsigned char *y_batch = y + i;
+        size_t batch_size = (m - i < batch) ? (m - i) : batch;
 
+        float Z[batch_size * k];
+        mul_martix(X_batch, theta, Z, batch_size, n, k);
+
+        float softmax[batch_size * k];
+        for (size_t row = 0; row < batch_size; row++) {
+            float sum = 0.0f;
+            for (size_t col = 0; col < k; col++) {
+                softmax[row * k + col] = expf(Z[row * k + col]);
+                sum += softmax[row * k + col];
+            }
+
+            for (size_t col = 0; col < k; col++) {
+                softmax[row * k + col] /= sum;
+            }
+
+            softmax[row * k + y_batch[row]] -= 1.0f;
+        }
+
+        float X_batch_T[n * batch_size];
+        T_martix(X_batch, X_batch_T, batch_size, n);
+        float gradient[n * k];
+        mul_martix(X_batch_T, softmax, gradient, n, batch_size, k);
+        for (size_t j = 0; j < n * k; i++) {
+            theta[j] -= lr * (gradient[j] / batch_size);
+        }
+    }
     /// END YOUR CODE
+}
+
+void T_martix(const float *src, float *dst, size_t m, size_t n) {
+    for (size_t row = 0; row < m; row++) {
+        for (size_t col = 0; col < n; col++) {
+            dst[col * m + row] = src[row * n + col];
+        }
+    }
+}
+
+void mul_martix(const float *src1, const float *src2, float *dst, size_t m, size_t k, size_t n) {
+    for (size_t i = 0; i < m * n; i++) {
+        dst[i] = 0.0f;
+    }
+    
+    for (size_t i = 0; i < m; i++) {
+        for (size_t l = 0; l < k; l++) {
+            float a = src1[i * k + l];
+            for (size_t j = 0; j < n; j++) {
+                dst[i * n + j] += a * src2[l * n + j];
+            }
+        }
+    }
 }
 
 

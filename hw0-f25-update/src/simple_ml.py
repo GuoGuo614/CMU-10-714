@@ -20,7 +20,7 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
@@ -48,7 +48,26 @@ def parse_mnist(image_filename, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR CODE
-    pass
+    with gzip.open(image_filename, 'rb') as f:
+        image_data = f.read()
+    magic, num_images, rows, cols = struct.unpack('>IIII', image_data[:16])
+
+    if magic != 2051:
+        return None
+    
+    images = np.frombuffer(image_data, dtype=np.uint8, offset=16)
+    X = images.reshape(num_images, rows * cols).astype(np.float32) / 255.0
+
+    with gzip.open(label_filename, 'rb') as f:
+        label_data = f.read()
+    magic, num_labels = struct.unpack('>II', label_data[:8])
+    
+    if magic != 2049:
+        return None
+    
+    y = np.frombuffer(label_data, dtype=np.uint8, offset=8)
+
+    return (X, y)
     ### END YOUR CODE
 
 
@@ -68,7 +87,8 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    batch_size = Z.shape[0]
+    return np.mean(np.log(np.sum(np.exp(Z), axis=1)) - Z[np.arange(batch_size), y])
     ### END YOUR CODE
 
 
@@ -91,7 +111,25 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_examples = X.shape[0]
+
+    for i in range(0, num_examples, batch):
+        X_batch = X[i: i+batch]
+        y_batch = y[i: i+batch]
+
+        X_batch_T = X_batch.T
+        Z = np.dot(X_batch ,theta) 
+
+        exp_Z = np.exp(Z)
+        softmax_probs = exp_Z / np.sum(exp_Z, axis=1, keepdims=True)
+
+        num_classes = theta.shape[1]
+        batch_size = len(y_batch)
+        I_y = np.zeros((batch_size, num_classes))
+        I_y[np.arange(batch_size), y_batch] = 1
+
+        gradient = np.dot(X_batch_T, (softmax_probs - I_y)) / batch_size
+        theta -= lr * gradient
     ### END YOUR CODE
 
 
@@ -118,7 +156,32 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_examples = X.shape[0]
+
+    for i in range(0, num_examples, batch):
+        X_batch = X[i: i+batch]
+        y_batch = y[i: i+batch]
+
+        Z1 = np.maximum(0, np.dot(X_batch, W1))
+        Z2 = np.dot(Z1, W2)  #(batch_size x num_classes)
+
+        num_classes = W2.shape[1]
+        batch_size = len(y_batch)
+        I_y = np.zeros((batch_size, num_classes))
+        I_y[np.arange(batch_size), y_batch] = 1
+
+        G2 = (np.exp(Z2) / np.sum(np.exp(Z2), axis=1, keepdims=True)) - I_y
+
+        dW2 = np.dot(Z1.T, G2)
+
+        G1_from_output = np.dot(G2, W2.T)  #(batch_size * hidden_dim)
+        relu_derivative = (Z1 > 0).astype(np.float32)
+        G1 = G1_from_output * relu_derivative
+
+        dW1 = np.dot(X_batch.T, G1)
+
+        W1 -= lr * dW1 / batch_size
+        W2 -= lr * dW2 / batch_size
     ### END YOUR CODE
 
 
